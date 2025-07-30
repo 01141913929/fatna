@@ -512,7 +512,7 @@ const EgyptTravelHome = () => {
           customerName: bookingData.fullName,
           bookingReference: reference, // <-- إضافة رقم الحجز
           totalAmount: vehicle?.price, // <-- إضافة السعر (أو قم بحسابه إذا لزم الأمر)
-          imageUrl: vehicle?.imageUrl || 'https://cdn3.vectorstock.com/i/1000x1000/81/67/trip-orange-color-word-text-logo-icon-vector-22338167.jpg', // <-- إضافة رابط صورة للمركبة
+          imageUrl: vehicle?.imageUrl || 'https://orionmagazine.org/wp-content/uploads/2015/09/8589130570139-dusk-camel-pyramids-cairo-egypt-top-travel-lists-wallpaper-hd.jpg', // <-- إضافة رابط صورة للمركبة
         };
 
         await fetch('/.netlify/functions/send-booking-notification', {
