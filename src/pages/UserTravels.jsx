@@ -501,6 +501,31 @@ const EgyptTravelHome = () => {
       
       // Add to Firestore
       const docRef = await addDoc(collection(db, 'bookings'), bookingData);
+
+
+      // ---<<< بداية الكود الجديد >>>---
+      // بعد نجاح الحفظ في Firestore، قم باستدعاء Netlify Function
+      try {
+        const tour = tours.find(t => t.id === formData.tourId);
+        const notificationPayload = {
+          from: tour?.city || 'Unknown City', // أو أي حقل يمثل مكان الانطلاق
+          to: tour?.name?.[language] || tour?.name, // أو أي حقل يمثل الوجهة
+          customerName: formData.fullName,
+        };
+
+        await fetch('/.netlify/functions/send-booking-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(notificationPayload),
+        });
+
+      } catch (notificationError) {
+          console.error("Failed to send notification:", notificationError);
+          // لا توقف العملية كلها إذا فشل الإشعار، فقط سجل الخطأ
+      }
+      // ---<<< نهاية الكود الجديد >>>---
       
       setBookingReference(reference);
       addNotification(

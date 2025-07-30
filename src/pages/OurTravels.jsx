@@ -395,15 +395,29 @@ const EgyptTours = () => {
     setIsSubmitting(true);
     
     try {
-      // ... (الكود الحالي لإنشاء الحجز موجود هنا)
-      // ...
+      // Generate booking reference
+      const reference = `ET${Date.now().toString().slice(-6)}`;
       
+      // Get tour details
+      const tour = tours.find(t => t.id === formData.tourId);
+      
+      // Create booking data
       const bookingData = {
-        // ... (بيانات الحجز الحالية)
+        ...formData,
+        bookingReference: reference,
+        timestamp: serverTimestamp(),
+        status: 'confirmed',
+        language: language,
+        tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
+        tourCity: tour?.city,
+        tourDuration: tour?.duration,
+        tourPrice: tour?.price,
+        totalAmount: tour?.price * formData.participants
       };
       
       // Add to Firestore
       await addDoc(collection(db, 'bookings'), bookingData);
+
 
       // ---<<< بداية الكود الجديد >>>---
       // بعد نجاح الحفظ في Firestore، قم باستدعاء Netlify Function
@@ -428,7 +442,15 @@ const EgyptTours = () => {
           // لا توقف العملية كلها إذا فشل الإشعار، فقط سجل الخطأ
       }
       // ---<<< نهاية الكود الجديد >>>---
-
+      
+      // Increment tour popularity
+      if (tour?.id) {
+        const tourRef = doc(db, 'tours', tour.id);
+        await updateDoc(tourRef, {
+          popularity: increment(1)
+        });
+      }
+      
       setBookingReference(reference);
       addNotification(
         language === 'ar' 
@@ -437,10 +459,30 @@ const EgyptTours = () => {
         'success'
       );
       
-      // ... (باقي الكود لعمل reset للفورم وإظهار رسالة التأكيد)
+      // Reset form
+      setFormData({
+        tourId: '',
+        fullName: '',
+        phoneNumber: '',
+        email: '',
+        nationality: '',
+        participants: 1,
+        tourDate: '',
+        specialRequests: ''
+      });
+      
+      // Show confirmation
+      setShowBookingModal(false);
+      setShowConfirmation(true);
       
     } catch (error) {
-      // ... (معالجة الأخطاء)
+      console.error('Booking error:', error);
+      addNotification(
+        language === 'ar' 
+          ? 'فشل في إتمام الحجز. الرجاء المحاولة مرة أخرى.' 
+          : 'Failed to complete booking. Please try again.', 
+        'danger'
+      );
     } finally {
       setIsSubmitting(false);
     }
