@@ -501,32 +501,29 @@ const EgyptTravelHome = () => {
       
       // Add to Firestore
       const docRef = await addDoc(collection(db, 'bookings'), bookingData);
+// ---<<< بداية الكود المُعدل لإرسال الإشعار >>>---
+      // بعد نجاح الحفظ في Firestore، قم باستدعاء Netlify Function
+      try {
+        const notificationPayload = {
+          // استخدام المفاتيح الصحيحة التي تتوقعها الوظيفة الخلفية
+          tourCity: bookingData.departureGovernorate, // مدينة المغادرة
+          tourName: `Trip from ${bookingData.departureCity} to ${bookingData.destinationCity}`, // وصف للرحلة
+          customerName: bookingData.fullName, // اسم العميل
+        };
 
+        await fetch('/.netlify/functions/send-booking-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(notificationPayload),
+        });
 
-    // ---<<< بداية الكود الجديد لإرسال الإشعار >>>---
-// بعد نجاح الحفظ في Firestore، قم باستدعاء Netlify Function
-try {
-  const notificationPayload = {
-    from: reservationData.from, // مدينة الانطلاق من بيانات الحجز
-    to: reservationData.to, // الوجهة من بيانات الحجز
-    customerName: reservationData.passengerName, // اسم الراكب من بيانات الحجز
-  };
-
-  await fetch('/.netlify/functions/send-booking-notification', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(notificationPayload),
-  });
-
-} catch (notificationError) {
-    console.error("Failed to send notification:", notificationError);
-    // لا توقف العملية كلها إذا فشل الإشعار، فقط سجل الخطأ
-}
-// ---<<< نهاية الكود الجديد >>>---
-      // ---<<< نهاية الكود الجديد >>>---
-      
+      } catch (notificationError) {
+          console.error("Failed to send notification:", notificationError);
+          // لا توقف العملية كلها إذا فشل الإشعار، فقط سجل الخطأ
+      }
+      // ---<<< نهاية الكود المُعدل >>>---
       setBookingReference(reference);
       addNotification(
         language === 'ar' 
