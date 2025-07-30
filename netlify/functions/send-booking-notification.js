@@ -35,20 +35,19 @@ exports.handler = async (event) => {
     
     const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
 
-    // 2. تجهيز رسالة الإشعار
     const message = {
       notification: {
         title: '🎉 حجز جديد تم تأكيده!',
         body: `تم استلام حجز جديد من ${bookingDetails.from} إلى ${bookingDetails.to}.`,
       },
       data: {
-        from: bookingDetails.from || '',
-        to: bookingDetails.to || '',
-        customerName: bookingDetails.customerName || ''
+        custom_from: bookingDetails.from || '',
+        custom_to: bookingDetails.to || '',
+        customer_name: bookingDetails.customerName || ''
       },
-      tokens: tokens, // إرسال لجميع التوكنات
+      tokens: tokens,
     };
-
+    
     // 3. إرسال الإشعارات
     const response = await admin.messaging().sendEachForMulticast({
       tokens,
