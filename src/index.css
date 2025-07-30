@@ -1,0 +1,202 @@
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: #1F2937; /* Keeping the charcoal for text for readability */
+  background: #EFEFEF; /* Soft cream background */
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-size: large;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Navbar Styling */
+.navbar {
+  position: sticky;
+  top: 0;
+  background-color: #749BC2; /* Medium blue */
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  border-bottom: 2px solid #91C8E4; /* Light blue accent */
+}
+
+/* Buttons */
+.btn {
+  background-color: #749BC2; /* Medium blue */
+  color: #EFEFEF; /* Cream */
+  border: none;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.btn:hover {
+  background-color: #91C8E4; /* Light blue */
+  color: #EFEFEF; /* Cream */
+  transform: translateY(-2px);
+  border-radius: 12px;
+}
+
+/* Login-specific button */
+.loginBtn {
+  background-color: #749BC2;
+  color: #EFEFEF;
+}
+
+/* Welcome Text */
+#wel {
+  color: #91C8E4; /* Light blue */
+  font-weight: bold;
+}
+
+/* Glowing Brand */
+.glow {
+  color: #749BC2; /* Medium blue */
+  text-shadow: 0 0 5px rgba(116, 155, 194, 0.6), 
+               0 0 10px rgba(116, 155, 194, 0.4);
+}
+
+/* Cards */
+.card {
+  transition: all 0.3s ease;
+  background-color: #ffffff;
+  border: 1px solid #91C8E4; /* Light blue border */
+  border-radius: 12px;
+  overflow: hidden;
+  animation: fadeIn 0.6s ease-out;
+}
+
+.card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  background-color: #749BC2; /* Medium blue */
+  color: #EFEFEF; /* Cream */
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+/* Fade animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Leaflet Map Container */
+.leaflet-container {
+  border-radius: 12px;
+  z-index: 1;
+  border: 2px solid #91C8E4; /* Light blue */
+}
+
+/* Styled Header */
+.styled-header {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #EFEFEF; /* Cream */
+  background: linear-gradient(135deg, #749BC2, #91C8E4);
+  padding: 18px 36px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: fit-content;
+  margin: 0 auto;
+  transition: all 0.3s ease-in-out;
+  border: 2px solid #91C8E4; /* Light blue */
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.styled-header:hover {
+  color: #EFEFEF; /* Cream */
+  background: linear-gradient(135deg, #91C8E4, #749BC2);
+  transform: scale(1.05) rotate(-1deg);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Text/utility colors */
+.text-accent {
+  color: #91C8E4; /* Light blue */
+}
+
+.bg-dark-green {
+  background-color: #749BC2; /* Medium blue */
+}
+
+.border-orange {
+  border-color: #91C8E4; /* Light blue */
+}
+
+/* Hover grow effect */
+.hover-grow {
+  transition: transform 0.3s ease;
+}
+.hover-grow:hover {
+  transform: scale(1.05);
+}
+
+/* Highlight Boxes */
+.highlight-box {
+  background-color: #91C8E4; /* Light blue */
+  color: #1F2937; /* Charcoal text */
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #749BC2; /* Medium blue */
+}
+
+/* CTA Button */
+.cta-button {
+  background-color: #91C8E4; /* Light blue */
+  color: #EFEFEF; /* Cream */
+  font-weight: bold;
+  padding: 15px 30px;
+  border-radius: 25px;
+  box-shadow: 0 4px 8px rgba(145, 200, 228, 0.3);
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+  background-color: #749BC2; /* Medium blue */
+  color: #EFEFEF; /* Cream */
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(116, 155, 194, 0.3);
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  body {
+    font-size: medium;
+  }
+
+  .styled-header {
+    font-size: 1.8rem;
+    padding: 15px 25px;
+  }
+}
+/* src/index.css */
+.navbar-toggler {
+  border: none;
+  padding: 0.5rem;
+}
+
+.navbar-toggler:focus {
+  box-shadow: none;
+}
+
+@media (max-width: 992px) {
+  .navbar-collapse {
+    padding-top: 1rem;
+  }
+  
+  .dropdown {
+    margin-top: 0.5rem;
+  }
+}
