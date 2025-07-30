@@ -1,7 +1,6 @@
 const admin = require('firebase-admin');
 
-// تهيئة Firebase Admin SDK باستخدام متغيرات البيئة
-// لا تضع بيانات المفتاح هنا مباشرة أبداً
+// Initialize Firebase Admin SDK using environment variables
 try {
   if (!admin.apps.length) {
     admin.initializeApp({
@@ -17,7 +16,6 @@ try {
 }
 
 exports.handler = async (event) => {
-  // التأكد من أن الطلب هو POST
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -26,46 +24,42 @@ exports.handler = async (event) => {
     const bookingDetails = JSON.parse(event.body);
     const db = admin.firestore();
 
-    // 1. جلب كل توكنات الأجهزة من Firestore
     const tokensSnapshot = await db.collection('admin_tokens').get();
     if (tokensSnapshot.empty) {
       console.log('No device tokens found.');
       return { statusCode: 200, body: 'No device tokens to send notification to.' };
     }
-    
+
     const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
 
-    const message = {
+    // Corrected: Renamed 'from' to 'tourCity' and 'to' to 'tourName'
+    const messagePayload = {
       notification: {
-        title: '🎉 حجز جديد تم تأكيده!',
-        body: `تم استلام حجز جديد من ${bookingDetails.from} إلى ${bookingDetails.to}.`,
+        title: '🎉 New Booking Confirmed!',
+        body: `A new booking has been received for a tour in ${bookingDetails.tourCity} for the ${bookingDetails.tourName} tour.`,
       },
       data: {
-        custom_from: bookingDetails.from || '',
-        custom_to: bookingDetails.to || '',
-        customer_name: bookingDetails.customerName || ''
-      },
-      tokens: tokens,
-    };
-    
-    // 3. إرسال الإشعارات
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title: '🎉 حجز جديد تم تأكيده!',
-        body: `تم استلام حجز جديد من ${bookingDetails.from} إلى ${bookingDetails.to}.`,
-      },
-      data: {
-        from: bookingDetails.from || '',
-        to: bookingDetails.to || '',
+        tourCity: bookingDetails.tourCity || '',
+        tourName: bookingDetails.tourName || '',
         customerName: bookingDetails.customerName || ''
       },
+    };
+
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: messagePayload.notification,
+      data: messagePayload.data,
     });
-    
-    
+
     console.log('Successfully sent message:', response.successCount, 'messages');
     if (response.failureCount > 0) {
-        console.log('Failed messages:', response.responses.filter(r => !r.success));
+      const failedTokens = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          failedTokens.push({ token: tokens[idx], error: resp.error.message });
+        }
+      });
+      console.log('Failed messages:', failedTokens);
     }
 
     return {

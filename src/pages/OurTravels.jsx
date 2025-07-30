@@ -422,8 +422,8 @@ const EgyptTours = () => {
       try {
         const tour = tours.find(t => t.id === formData.tourId); // البحث عن الجولة من قائمة 'tours'
         const notificationPayload = {
-          from: tour?.city || 'Unknown City', // مدينة الجولة
-          to: tour?.name?.[language] || tour?.name?.en || tour?.name, // اسم الجولة باللغة المختارة
+          tourCity: tour?.city || 'Unknown City', // مدينة الجولة
+          tourName: tour?.name?.[language] || tour?.name?.en || tour?.name, // اسم الجولة باللغة المختارة
           customerName: formData.fullName, // اسم العميل من بيانات الفورم
         };
       
