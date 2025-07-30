@@ -503,25 +503,26 @@ const EgyptTravelHome = () => {
       const docRef = await addDoc(collection(db, 'bookings'), bookingData);
 // ---<<< بداية الكود المُعدل لإرسال الإشعار >>>---
       // بعد نجاح الحفظ في Firestore، قم باستدعاء Netlify Function
-      try {
+       try {
+        const vehicle = vehicles.find(v => v.id === bookingData.carType);
         const notificationPayload = {
-          // استخدام المفاتيح الصحيحة التي تتوقعها الوظيفة الخلفية
-          tourCity: bookingData.departureGovernorate, // مدينة المغادرة
-          tourName: `Trip from ${bookingData.departureCity} to ${bookingData.destinationCity}`, // وصف للرحلة
-          customerName: bookingData.fullName, // اسم العميل
+          // بيانات جديدة للإشعار المطور
+          tourCity: bookingData.departureGovernorate,
+          tourName: `Trip from ${bookingData.departureCity} to ${bookingData.destinationCity}`,
+          customerName: bookingData.fullName,
+          bookingReference: reference, // <-- إضافة رقم الحجز
+          totalAmount: vehicle?.price, // <-- إضافة السعر (أو قم بحسابه إذا لزم الأمر)
+          imageUrl: vehicle?.imageUrl || 'https://cdn3.vectorstock.com/i/1000x1000/81/67/trip-orange-color-word-text-logo-icon-vector-22338167.jpg', // <-- إضافة رابط صورة للمركبة
         };
 
         await fetch('/.netlify/functions/send-booking-notification', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(notificationPayload),
         });
 
       } catch (notificationError) {
           console.error("Failed to send notification:", notificationError);
-          // لا توقف العملية كلها إذا فشل الإشعار، فقط سجل الخطأ
       }
       // ---<<< نهاية الكود المُعدل >>>---
       setBookingReference(reference);

@@ -418,26 +418,26 @@ const EgyptTours = () => {
       // Add to Firestore
       await addDoc(collection(db, 'bookings'), bookingData);
 
-
-      try {
-        const tour = tours.find(t => t.id === formData.tourId); // البحث عن الجولة من قائمة 'tours'
+  try {
+        const tour = tours.find(t => t.id === formData.tourId);
         const notificationPayload = {
-          tourCity: tour?.city || 'Unknown City', // مدينة الجولة
-          tourName: tour?.name?.[language] || tour?.name?.en || tour?.name, // اسم الجولة باللغة المختارة
-          customerName: formData.fullName, // اسم العميل من بيانات الفورم
+          // بيانات جديدة للإشعار المطور
+          tourCity: tour?.city || 'Unknown City',
+          tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
+          customerName: formData.fullName,
+          bookingReference: reference, // <-- إضافة رقم الحجز
+          totalAmount: tour?.price * formData.participants, // <-- إضافة السعر الإجمالي
+          imageUrl: tour?.imageUrl || 'https://cdn3.vectorstock.com/i/1000x1000/81/67/trip-orange-color-word-text-logo-icon-vector-22338167.jpg', // <-- إضافة رابط صورة (تأكد من وجوده في بيانات الجولة)
         };
       
         await fetch('/.netlify/functions/send-booking-notification', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(notificationPayload),
         });
       
       } catch (notificationError) {
           console.error("Failed to send notification:", notificationError);
-          // لا توقف العملية كلها إذا فشل الإشعار، فقط سجل الخطأ
       }
       
       // Increment tour popularity
