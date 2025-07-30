@@ -50,7 +50,19 @@ exports.handler = async (event) => {
     };
 
     // 3. إرسال الإشعارات
-    const response = await admin.messaging().sendMulticast(message);
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: {
+        title: '🎉 حجز جديد تم تأكيده!',
+        body: `تم استلام حجز جديد من ${bookingDetails.from} إلى ${bookingDetails.to}.`,
+      },
+      data: {
+        from: bookingDetails.from || '',
+        to: bookingDetails.to || '',
+        customerName: bookingDetails.customerName || ''
+      },
+    });
+    
     
     console.log('Successfully sent message:', response.successCount, 'messages');
     if (response.failureCount > 0) {
