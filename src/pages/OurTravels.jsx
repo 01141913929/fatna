@@ -419,16 +419,14 @@ const EgyptTours = () => {
       await addDoc(collection(db, 'bookings'), bookingData);
 
 
-      // ---<<< بداية الكود الجديد >>>---
-      // بعد نجاح الحفظ في Firestore، قم باستدعاء Netlify Function
       try {
-        const tour = tours.find(t => t.id === formData.tourId);
+        const tour = tours.find(t => t.id === formData.tourId); // البحث عن الجولة من قائمة 'tours'
         const notificationPayload = {
-          from: tour?.city || 'Unknown City', // أو أي حقل يمثل مكان الانطلاق
-          to: tour?.name?.[language] || tour?.name, // أو أي حقل يمثل الوجهة
-          customerName: formData.fullName,
+          from: tour?.city || 'Unknown City', // مدينة الجولة
+          to: tour?.name?.[language] || tour?.name?.en || tour?.name, // اسم الجولة باللغة المختارة
+          customerName: formData.fullName, // اسم العميل من بيانات الفورم
         };
-
+      
         await fetch('/.netlify/functions/send-booking-notification', {
           method: 'POST',
           headers: {
@@ -436,12 +434,11 @@ const EgyptTours = () => {
           },
           body: JSON.stringify(notificationPayload),
         });
-
+      
       } catch (notificationError) {
           console.error("Failed to send notification:", notificationError);
           // لا توقف العملية كلها إذا فشل الإشعار، فقط سجل الخطأ
       }
-      // ---<<< نهاية الكود الجديد >>>---
       
       // Increment tour popularity
       if (tour?.id) {
