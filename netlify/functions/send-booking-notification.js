@@ -37,10 +37,11 @@ exports.handler = async (event) => {
     const messagePayload = {
       notification: {
         title: `🎉 حجز جديد من: ${details.customerName}`,
-        body: `تم تأكيد حجز لـ "${details.tourName}" بمبلغ إجمالي ${details.totalAmount || 'N/A'} جنيه.`,
+        body: `تم تأكيد حجز لـ "${details.tourName}`,
       },
       data: {
         // بيانات إضافية لفتح الحجز مباشرة عند الضغط على الإشعار
+        type: 'new_booking',
         bookingId: details.bookingReference || '',
         customerName: details.customerName || '',
         tourName: details.tourName || '',
