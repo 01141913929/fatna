@@ -63,6 +63,8 @@ import MinibusReal from "../assets/MINIBUS.jpg";
 import SedanReal from "../assets/SEDAN.jpeg";
 import SuvReal from "../assets/SUV.jpeg";
 import subimg from "../assets/car.png";
+import company_logo from "../assets/company_logo.jpeg";
+
 
 // Error boundary component
 const ErrorBoundary = ({ children, onReset }) => {
@@ -133,7 +135,7 @@ const EgyptTravelHome = () => {
   // Translations
   const translations = {
     en: {
-      appName: "Egypt Travel",
+      appName: "EGYPT VISTA",
       home: "Home",
       bookNow: "Book Now",
       about: "About",
@@ -147,7 +149,7 @@ const EgyptTravelHome = () => {
       vehicleTypes: "Our Vehicle Types",
       whyChooseUs: "Why Choose Us?",
       testimonials: "What Our Customers Say",
-      footer: "© 2023 Egypt Travel. All rights reserved.",
+      footer: "© 2023 EGYPT VISTA. All rights reserved.",
       bookNowButton: "Book Your Ride Now",
       loading: "Loading...",
       dataLoadError: "Error loading data. Please refresh the page.",
@@ -264,7 +266,7 @@ const EgyptTravelHome = () => {
   const getPriceForRoute = useCallback(
     (departure, destination, vehicleType) => {
       if (!departure || !destination || !vehicleType) return null;
-      
+
       // Find matching route (both directions)
       const route = travelPrices.find(
         (price) =>
@@ -273,6 +275,10 @@ const EgyptTravelHome = () => {
           (price.departureGovernorate === destination &&
             price.destinationGovernorate === departure)
       );
+
+      if (!route) {
+        return null; // Return null if no route exists
+      }
 
       return route?.prices?.[vehicleType] || null;
     },
@@ -391,28 +397,27 @@ const EgyptTravelHome = () => {
           }
         );
 
-unsubscribeTravelPrices = onSnapshot(
-  query(collection(db, "routes")),
-  (snapshot) => {
-    const routesData = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    setTravelPrices(routesData);
-  },
-  (error) => {
-    console.error("Routes listener error:", error);
-    addNotification(
-      language === "ar"
-        ? "خطأ في الاتصال بقاعدة البيانات"
-        : "Database connection error",
-      "danger"
-    );
-  }
-);
+        unsubscribeTravelPrices = onSnapshot(
+          query(collection(db, "routes")),
+          (snapshot) => {
+            const routesData = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+            setTravelPrices(routesData);
+          },
+          (error) => {
+            console.error("Routes listener error:", error);
+            addNotification(
+              language === "ar"
+                ? "خطأ في الاتصال بقاعدة البيانات"
+                : "Database connection error",
+              "danger"
+            );
+          }
+        );
 
-
-                // Testimonials listener
+        // Testimonials listener
         unsubscribeTestimonials = onSnapshot(
           query(collection(db, "testimonials")),
           (snapshot) => {
@@ -736,6 +741,7 @@ unsubscribeTravelPrices = onSnapshot(
     }
 
     // Validate that the route exists in travelPrices
+    // In the validateForm function, add this check:
     if (formData.departureGovernorate && formData.destinationGovernorate) {
       const routeExists = travelPrices.some(
         (price) =>
@@ -907,9 +913,9 @@ unsubscribeTravelPrices = onSnapshot(
       formData.destinationGovernorate,
       formData.carType
     );
-    
+
     const receiptData = `
-${language === "ar" ? "إيصال حجز مصر للسياحة" : "EGYPT TRAVEL BOOKING RECEIPT"}
+${language === "ar" ? "إيصال حجز مصر للسياحة" : "EGYPT VISTA BOOKING RECEIPT"}
 ${language === "ar" ? "============================" : "============================"}
 ${language === "ar" ? "رقم الحجز:" : "Booking Reference:"} ${bookingReference}
 ${language === "ar" ? "التاريخ:" : "Date:"} ${new Date().toLocaleDateString()}
@@ -930,7 +936,7 @@ ${language === "ar" ? "عدد الركاب:" : "Passengers:"} ${formData.passeng
 ${language === "ar" ? "تاريخ الرحلة:" : "Trip Date:"} ${formData.tripDate || (language === "ar" ? "سيتم تأكيده" : "To be confirmed")}
 ${language === "ar" ? "وقت الرحلة:" : "Trip Time:"} ${formData.tripTime || (language === "ar" ? "سيتم تأكيده" : "To be confirmed")}
 
-${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "Thank you for choosing Egypt Travel!"}
+${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "Thank you for choosing EGYPT VISTA!"}
     `;
 
     const blob = new Blob([receiptData], { type: "text/plain" });
@@ -1007,56 +1013,68 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
     <ErrorBoundary onReset={() => window.location.reload()}>
       <div className="min-vh-100" style={{ backgroundColor: "#F8FAFC" }}>
         {/* Navigation */}
-        <Navbar expand="lg" className="shadow-sm bg-white">
-          <Container>
-            <Navbar.Brand
-              href="#"
-              className="fw-bold"
-              style={{ color: "#1E40AF" }}
-              onClick={() => navigate("/")}
-            >
-              {t.appName}
-            </Navbar.Brand>
-            <Navbar.Toggle aria-controls="basic-navbar-nav" />
-            <Navbar.Collapse id="basic-navbar-nav">
-              <Nav className="me-auto">
-                <Nav.Link onClick={() => navigate("/")}>
-                  <FaHome className="me-1" /> {t.home}
-                </Nav.Link>
-                <Nav.Link onClick={() => navigate("/travels")}>
-                  <FaRoute className="me-1" />{" "}
-                  {language === "ar" ? "رحلاتنا" : "Our Travels"}
-                </Nav.Link>
-                <Nav.Link onClick={() => setShowBookingModal(true)}>
-                  <FaSearch className="me-1" /> {t.bookNow}
-                </Nav.Link>
-                <Nav.Link onClick={() => navigate("/airports")}>
-                  <FaPlane className="me-1" />{" "}
-                  {language === "ar" ? "المطارات" : "Airports"}
-                </Nav.Link>
-                <Nav.Link onClick={() => navigate("/about")}>
-                  <FaInfoCircle className="me-1" /> {t.about}
-                </Nav.Link>
-              </Nav>
-              <Dropdown>
-                <Dropdown.Toggle
-                  variant="outline-primary"
-                  id="dropdown-language"
-                >
-                  <FaGlobe className="me-1" /> {t.languages[language]}
-                </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  <Dropdown.Item onClick={() => setLanguage("en")}>
-                    {t.languages.en}
-                  </Dropdown.Item>
-                  <Dropdown.Item onClick={() => setLanguage("ar")}>
-                    {t.languages.ar}
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
-            </Navbar.Collapse>
-          </Container>
-        </Navbar>
+<Navbar expand="lg" className="shadow-sm bg-white">
+  <Container>
+    <Navbar.Brand
+      href="#"
+      className="fw-bold d-flex align-items-center"
+      style={{ color: "#1E40AF", cursor: "pointer" }}
+      onClick={() => navigate("/")}
+    >
+      <img
+        src={company_logo} // Replace with your actual logo path
+        alt="Company Logo"
+        height="35"
+        className="me-2"
+        style={{ 
+          objectFit: "contain",
+          transition: "opacity 0.3s ease"
+        }}
+        onMouseEnter={(e) => e.target.style.opacity = "0.8"}
+        onMouseLeave={(e) => e.target.style.opacity = "1"}
+      />
+      {t.appName}
+    </Navbar.Brand>
+    <Navbar.Toggle aria-controls="basic-navbar-nav" />
+    <Navbar.Collapse id="basic-navbar-nav">
+      <Nav className="me-auto">
+        <Nav.Link onClick={() => navigate("/")}>
+          <FaHome className="me-1" /> {t.home}
+        </Nav.Link>
+        <Nav.Link onClick={() => navigate("/travels")}>
+          <FaRoute className="me-1" />{" "}
+          {language === "ar" ? "رحلاتنا" : "Our Travels"}
+        </Nav.Link>
+        <Nav.Link onClick={() => setShowBookingModal(true)}>
+          <FaSearch className="me-1" /> {t.bookNow}
+        </Nav.Link>
+        <Nav.Link onClick={() => navigate("/airports")}>
+          <FaPlane className="me-1" />{" "}
+          {language === "ar" ? "المطارات" : "Airports"}
+        </Nav.Link>
+        <Nav.Link onClick={() => navigate("/about")}>
+          <FaInfoCircle className="me-1" /> {t.about}
+        </Nav.Link>
+      </Nav>
+      <Dropdown>
+        <Dropdown.Toggle
+          variant="outline-primary"
+          id="dropdown-language"
+        >
+          <FaGlobe className="me-1" /> {t.languages[language]}
+        </Dropdown.Toggle>
+        <Dropdown.Menu>
+          <Dropdown.Item onClick={() => setLanguage("en")}>
+            {t.languages.en}
+          </Dropdown.Item>
+          <Dropdown.Item onClick={() => setLanguage("ar")}>
+            {t.languages.ar}
+          </Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown>
+    </Navbar.Collapse>
+  </Container>
+</Navbar>
 
         {/* Notifications */}
         {notifications.map((notification) => (
@@ -1460,7 +1478,7 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
                 const isPopular = vehicle.popularity > 70;
                 const isTopRated = vehicle.rating > 4.5;
                 const IconComponent = iconMap[vehicle.icon] || FaCar;
-                
+
                 // Get price for this vehicle type on the selected route
                 const routePrice = getPriceForRoute(
                   formData.departureGovernorate,
@@ -1545,7 +1563,7 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
                           ))}
                         </div>
                         {routePrice ? (
-                          <div className="mb-3">
+                          <div className="mb-2">
                             <span className="h5 text-primary fw-bold">
                               {routePrice} {language === "ar" ? "دولار" : "USD"}
                             </span>
@@ -1553,14 +1571,15 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
                               {language === "ar" ? "سعر الرحلة" : "Trip price"}
                             </small>
                           </div>
-                        ) : vehicle.price ? (
-                          <div className="mb-3">
-                            <span className="h5 text-primary fw-bold">
-                              {vehicle.price}{" "}
-                              {language === "ar" ? "دولار" : "USD"}
-                            </span>
+                        ) : (
+                          <div className="mb-2">
+                            <small className="text-danger">
+                              {language === "ar"
+                                ? "الرحلة غير متوفرة حالياً"
+                                : "Sorry there is no travel yet... choose to see one"}
+                            </small>
                           </div>
-                        ) : null}
+                        )}
                       </Card.Body>
                     </Card>
                   </Col>
@@ -1964,6 +1983,44 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
                 </Row>
               </div>
 
+              {/* Route Availability Check */}
+              {formData.departureGovernorate &&
+                formData.destinationGovernorate && (
+                  <div className="mb-3">
+                    {travelPrices.some(
+                      (price) =>
+                        (price.departureGovernorate ===
+                          formData.departureGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.destinationGovernorate) ||
+                        (price.departureGovernorate ===
+                          formData.destinationGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.departureGovernorate)
+                    ) ? (
+                      <Alert
+                        variant="success"
+                        className="d-flex align-items-center"
+                      >
+                        <FaCheck className="me-2" />
+                        {language === "ar"
+                          ? "هذه الرحلة متاحة لل booking"
+                          : "This travel is available for booking"}
+                      </Alert>
+                    ) : (
+                      <Alert
+                        variant="danger"
+                        className="d-flex align-items-center"
+                      >
+                        <FaTimes className="me-2" />
+                        {language === "ar"
+                          ? "لا توجد رحلة متاحة بين هذه المحافظات حالياً"
+                          : "No available travel between these governorates currently"}
+                      </Alert>
+                    )}
+                  </div>
+                )}
+
               {/* Vehicle Type Selection */}
               <div className="mb-4">
                 <h5 className="mb-3 d-flex align-items-center">
@@ -1988,24 +2045,37 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
                       formData.destinationGovernorate,
                       vehicle.id
                     );
+                    const routeExists = travelPrices.some(
+                      (price) =>
+                        (price.departureGovernorate ===
+                          formData.departureGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.destinationGovernorate) ||
+                        (price.departureGovernorate ===
+                          formData.destinationGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.departureGovernorate)
+                    );
 
                     return (
                       <Col md={4} key={vehicle.id}>
                         <Card
-                          className={`h-100 cursor-pointer transition-all ${
+                          className={`h-100 transition-all ${
                             isSelected
                               ? "border-primary shadow-lg"
                               : "border-light"
-                          }`}
+                          } ${!routeExists ? "opacity-50" : ""}`}
                           style={{
-                            cursor: "pointer",
+                            cursor: routeExists ? "pointer" : "not-allowed",
                             transform: isSelected ? "translateY(-5px)" : "none",
                             transition: "all 0.3s ease",
                             borderWidth: isSelected ? "3px" : "1px",
                           }}
-                          onClick={() =>
-                            handleInputChange("carType", vehicle.id)
-                          }
+                          onClick={() => {
+                            if (routeExists) {
+                              handleInputChange("carType", vehicle.id);
+                            }
+                          }}
                         >
                           <Card.Body className="text-center p-3">
                             <div
@@ -2038,21 +2108,32 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
                               {language === "ar" ? "راكب" : "passengers"}
                             </Badge>
 
-                            {routePrice ? (
+                            {routeExists ? (
+                              routePrice ? (
+                                <div className="mb-2">
+                                  <small className="text-primary fw-bold">
+                                    {routePrice}{" "}
+                                    {language === "ar" ? "دولار" : "USD"}
+                                  </small>
+                                </div>
+                              ) : (
+                                <div className="mb-2">
+                                  <small className="text-muted">
+                                    {language === "ar"
+                                      ? "السعر غير متوفر"
+                                      : "Price not available"}
+                                  </small>
+                                </div>
+                              )
+                            ) : (
                               <div className="mb-2">
-                                <small className="text-primary fw-bold">
-                                  {routePrice}{" "}
-                                  {language === "ar" ? "دولار" : "USD"}
+                                <small className="text-danger">
+                                  {language === "ar"
+                                    ? "غير متاح لهذه الرحلة"
+                                    : "Not available for this route"}
                                 </small>
                               </div>
-                            ) : vehicle.price ? (
-                              <div className="mb-2">
-                                <small className="text-primary fw-bold">
-                                  {vehicle.price}{" "}
-                                  {language === "ar" ? "دولار" : "USD"}
-                                </small>
-                              </div>
-                            ) : null}
+                            )}
 
                             {isSelected && (
                               <div className="mt-2">
@@ -2303,10 +2384,35 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={isSubmitting}
+                  disabled={
+                    isSubmitting ||
+                    !travelPrices.some(
+                      (price) =>
+                        (price.departureGovernorate ===
+                          formData.departureGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.destinationGovernorate) ||
+                        (price.departureGovernorate ===
+                          formData.destinationGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.departureGovernorate)
+                    )
+                  }
                   className="px-5 py-3 fw-bold"
                   style={{
-                    background: "linear-gradient(135deg, #1E40AF, #3B82F6)",
+                    background: travelPrices.some(
+                      (price) =>
+                        (price.departureGovernorate ===
+                          formData.departureGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.destinationGovernorate) ||
+                        (price.departureGovernorate ===
+                          formData.destinationGovernorate &&
+                          price.destinationGovernorate ===
+                            formData.departureGovernorate)
+                    )
+                      ? "linear-gradient(135deg, #1E40AF, #3B82F6)"
+                      : "#cccccc",
                     border: "none",
                     borderRadius: "50px",
                     minWidth: "200px",
@@ -2327,125 +2433,6 @@ ${language === "ar" ? "شكرًا لاختياركم مصر للسياحة!" : "
               </div>
             </Form>
           </Modal.Body>
-        </Modal>
-
-        {/* Add Custom Place Modal */}
-        <Modal
-          show={showAddPlaceModal}
-          onHide={() => setShowAddPlaceModal(false)}
-          size="md"
-          centered
-        >
-          <Modal.Header closeButton>
-            <Modal.Title>
-              <FaMapMarkerAlt className="me-2" />
-              {language === "ar" ? "إضافة مكان جديد" : "Add New Place"}
-            </Modal.Title>
-          </Modal.Header>
-
-          <Modal.Body>
-            <Form>
-              <Row className="g-3">
-                <Col md={6}>
-                  <FloatingLabel
-                    label={language === "ar" ? "المحافظة *" : "Governorate *"}
-                  >
-                    <Form.Control
-                      type="text"
-                      value={newPlace.governorate}
-                      onChange={(e) =>
-                        setNewPlace((prev) => ({
-                          ...prev,
-                          governorate: e.target.value,
-                        }))
-                      }
-                      className="border-0 shadow-sm"
-                      placeholder={
-                        language === "ar" ? "اسم المحافظة" : "Governorate name"
-                      }
-                    />
-                  </FloatingLabel>
-                </Col>
-
-                <Col md={6}>
-                  <FloatingLabel
-                    label={language === "ar" ? "المدينة *" : "City *"}
-                  >
-                    <Form.Control
-                      type="text"
-                      value={newPlace.city}
-                      onChange={(e) =>
-                        setNewPlace((prev) => ({
-                          ...prev,
-                          city: e.target.value,
-                        }))
-                      }
-                      className="border-0 shadow-sm"
-                      placeholder={
-                        language === "ar" ? "اسم المدينة" : "City name"
-                      }
-                    />
-                  </FloatingLabel>
-                </Col>
-
-                <Col md={12}>
-                  <FloatingLabel
-                    label={language === "ar" ? "نوع المكان" : "Place Type"}
-                  >
-                    <Form.Select
-                      value={newPlace.type}
-                      onChange={(e) =>
-                        setNewPlace((prev) => ({
-                          ...prev,
-                          type: e.target.value,
-                        }))
-                      }
-                      className="border-0 shadow-sm"
-                    >
-                      <option value="departure">
-                        {language === "ar"
-                          ? "مكان المغادرة"
-                          : "Departure Place"}
-                      </option>
-                      <option value="destination">
-                        {language === "ar"
-                          ? "مكان الوصول"
-                          : "Destination Place"}
-                      </option>
-                    </Form.Select>
-                  </FloatingLabel>
-                </Col>
-              </Row>
-            </Form>
-          </Modal.Body>
-
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() => setShowAddPlaceModal(false)}
-            >
-              {language === "ar" ? "إلغاء" : "Cancel"}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                if (newPlace.governorate && newPlace.city) {
-                  addCustomPlace(newPlace);
-                  setNewPlace({ governorate: "", city: "", type: "departure" });
-                  setShowAddPlaceModal(false);
-                } else {
-                  addNotification(
-                    language === "ar"
-                      ? "الرجاء ملء جميع الحقول المطلوبة"
-                      : "Please fill all required fields",
-                    "warning"
-                  );
-                }
-              }}
-            >
-              {language === "ar" ? "إضافة المكان" : "Add Place"}
-            </Button>
-          </Modal.Footer>
         </Modal>
 
         {/* Enhanced Booking Confirmation Modal */}

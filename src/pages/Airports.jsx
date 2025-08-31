@@ -8,7 +8,8 @@ import {
   FaPlane, FaCar, FaGlobe, FaBus, FaSearch, 
   FaCheck, FaHome, FaInfoCircle, FaTruck,
   FaUser, FaPhone, FaCalendarAlt, FaClock,
-  FaDownload, FaPrint, FaMapMarkerAlt, FaStar
+  FaDownload, FaPrint, FaMapMarkerAlt, FaStar,
+  FaExclamationTriangle, FaCheckCircle, FaSync, FaExclamationCircle
 } from 'react-icons/fa';
 import { collection, getDocs, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -16,6 +17,7 @@ import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { useNavigate } from 'react-router-dom';
 import { isValidPhoneNumber } from 'react-phone-number-input';
+import company_logo from "../assets/company_logo.jpeg";
 
 const Airports = () => {
   const navigate = useNavigate();
@@ -23,7 +25,7 @@ const Airports = () => {
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
-  const [lang, setLang] = useState('ar');
+  const [lang, setLang] = useState('en');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingData, setBookingData] = useState({
     name: '',
@@ -37,7 +39,7 @@ const Airports = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingReference, setBookingReference] = useState('');
-  const [connectionStatus, setConnectionStatus] = useState('connected');
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
 
   // Color scheme
   const colors = {
@@ -56,17 +58,20 @@ const Airports = () => {
     FaTruck: FaTruck
   };
 
-  // Fetch data from Firestore with real-time updates
+  // Fetch data from Firestore with real-time updates and enhanced error handling
   useEffect(() => {
     let unsubscribeAirports = () => {};
     let unsubscribeVehicles = () => {};
+    let retryCount = 0;
+    const maxRetries = 5;
+    const retryDelays = [1000, 2000, 5000, 10000, 30000]; // Exponential backoff retry delays
 
     const setupListeners = async () => {
       setIsLoading(true);
       setConnectionStatus('connecting');
 
       try {
-        // Airports listener
+        // Airports listener with enhanced error handling
         unsubscribeAirports = onSnapshot(
           collection(db, 'airports'),
           (snapshot) => {
@@ -76,18 +81,31 @@ const Airports = () => {
             }));
             setAirports(airportsData);
             setConnectionStatus('connected');
+            retryCount = 0;
           },
           (error) => {
             console.error("Airports listener error:", error);
+            handleFirestoreError(error, 'airports listener');
             setConnectionStatus('disconnected');
-            addNotification(
-              lang === 'ar' ? "خطأ في تحميل بيانات المطارات" : "Error loading airports data",
-              "danger"
-            );
+            
+            // Exponential backoff retry logic
+            if (retryCount < maxRetries) {
+              const delay = retryDelays[retryCount];
+              setTimeout(() => {
+                retryCount++;
+                setupListeners();
+              }, delay);
+            } else {
+              setConnectionStatus('error');
+              addNotification(
+                'Failed to connect after multiple attempts. Please refresh the page',
+                'warning'
+              );
+            }
           }
         );
 
-        // Vehicles listener
+        // Vehicles listener with enhanced error handling
         unsubscribeVehicles = onSnapshot(
           collection(db, 'vehicles'),
           (snapshot) => {
@@ -96,7 +114,6 @@ const Airports = () => {
               return {
                 id: doc.id,
                 ...data,
-                // Add computed properties
                 pricePerKm: data.price / 100,
                 popularity: Math.floor(Math.random() * 100) + 20,
                 rating: (Math.random() * 2 + 3).toFixed(1)
@@ -104,14 +121,27 @@ const Airports = () => {
             });
             setVehicles(vehiclesData);
             setConnectionStatus('connected');
+            retryCount = 0;
           },
           (error) => {
             console.error("Vehicles listener error:", error);
+            handleFirestoreError(error, 'vehicles listener');
             setConnectionStatus('disconnected');
-            addNotification(
-              lang === 'ar' ? "خطأ في تحميل بيانات المركبات" : "Error loading vehicles data",
-              "danger"
-            );
+            
+            // Exponential backoff retry logic
+            if (retryCount < maxRetries) {
+              const delay = retryDelays[retryCount];
+              setTimeout(() => {
+                retryCount++;
+                setupListeners();
+              }, delay);
+            } else {
+              setConnectionStatus('error');
+              addNotification(
+                'Failed to connect after multiple attempts. Please refresh the page',
+                'warning'
+              );
+            }
           }
         );
 
@@ -119,7 +149,7 @@ const Airports = () => {
         console.error("Error setting up listeners:", error);
         setConnectionStatus('error');
         addNotification(
-          lang === 'ar' ? "خطأ في تحميل البيانات" : "Error loading data",
+          "Error loading data",
           "danger"
         );
       } finally {
@@ -135,6 +165,30 @@ const Airports = () => {
       unsubscribeVehicles();
     };
   }, [lang]);
+
+  // Handle Firestore errors with user-friendly messages
+  const handleFirestoreError = (error, context) => {
+    console.error(`Firestore error in ${context}:`, error);
+    
+    let errorMessage = '';
+    
+    // Provide friendly error messages based on error codes
+    switch (error.code) {
+      case 'permission-denied':
+        errorMessage = 'You do not have permission to perform this action';
+        break;
+      case 'unavailable':
+        errorMessage = 'Service is unavailable. Please check your internet connection';
+        break;
+      case 'aborted':
+        errorMessage = 'The operation was aborted';
+        break;
+      default:
+        errorMessage = `An unexpected error occurred: ${error.message}`;
+    }
+    
+    addNotification(errorMessage, "danger");
+  };
 
   // Generate time slots (24 hours)
   const generateTimeSlots = () => {
@@ -158,43 +212,6 @@ const Airports = () => {
 
   // Translations
   const translations = {
-    ar: {
-      title: "حجز نقل المطارات",
-      subtitle: "اختر المطار وسنوفر لك أفضل وسائل النقل",
-      selectAirport: "اختر المطار",
-      selectVehicle: "اختر نوع المركبة",
-      selectDate: "اختر التاريخ",
-      selectTime: "اختر الوقت",
-      searchButton: "إرسال الحجز",
-      searching: "جاري الإرسال...",
-      bookingTitle: "تأكيد الحجز",
-      nameLabel: "الاسم الكامل",
-      phoneLabel: "رقم الهاتف",
-      passengersLabel: "عدد الركاب",
-      confirmBooking: "تأكيد الحجز",
-      cancel: "إلغاء",
-      bookingSuccess: "تم تأكيد الحجز بنجاح",
-      totalPrice: "السعر الإجمالي",
-      includesTaxes: "يشمل جميع الضرائب",
-      maxCapacity: "الحد الأقصى",
-      reservationDetails: "تفاصيل الحجز",
-      dateTime: "التاريخ والوقت",
-      invalidPhone: "رقم الهاتف غير صالح",
-      languages: {
-        ar: "العربية",
-        en: "الإنجليزية",
-        cn: "الصينية"
-      },
-      home: "الرئيسية",
-      bookNow: "احجز الآن",
-      about: "حول",
-      loading: "جاري التحميل...",
-      connectionError: "مشكلة في الاتصال. جاري إعادة المحاولة...",
-      vehicleFeatures: "المميزات",
-      per100km: "لكل 100 كم",
-      popular: "شائع",
-      verified: "مؤكد"
-    },
     en: {
       title: "Airport Transfer Booking",
       subtitle: "Choose your airport and we'll provide the best transportation",
@@ -231,47 +248,10 @@ const Airports = () => {
       per100km: "per 100km",
       popular: "Popular",
       verified: "Verified"
-    },
-    cn: {
-      title: "机场接送预订",
-      subtitle: "选择您的机场，我们将提供最佳交通服务",
-      selectAirport: "选择机场",
-      selectVehicle: "选择车辆类型",
-      selectDate: "选择日期",
-      selectTime: "选择时间",
-      searchButton: "发送预订",
-      searching: "发送中...",
-      bookingTitle: "预订确认",
-      nameLabel: "全名",
-      phoneLabel: "电话号码",
-      passengersLabel: "乘客人数",
-      confirmBooking: "确认预订",
-      cancel: "取消",
-      bookingSuccess: "预订成功确认",
-      totalPrice: "总价",
-      includesTaxes: "包括所有税费",
-      maxCapacity: "最大容量",
-      reservationDetails: "预订详情",
-      dateTime: "日期时间",
-      invalidPhone: "电话号码无效",
-      languages: {
-        ar: "阿拉伯语",
-        en: "英语",
-        cn: "中文"
-      },
-      home: "首页",
-      bookNow: "立即预订",
-      about: "关于",
-      loading: "加载中...",
-      connectionError: "连接问题。正在重试...",
-      vehicleFeatures: "特征",
-      per100km: "每100公里",
-      popular: "热门",
-      verified: "已验证"
     }
   };
 
-  const t = translations[lang] || translations['ar'];
+  const t = translations[lang] || translations['en'];
 
   const addNotification = (message, type = 'success') => {
     const id = Date.now();
@@ -293,7 +273,7 @@ const Airports = () => {
   const handleSubmit = async () => {
     if (!selectedAirport || !selectedVehicle || !selectedDate || !selectedTime || !bookingData.name || !bookingData.phone) {
       addNotification(
-        lang === 'ar' ? "الرجاء ملء جميع الحقول المطلوبة" : "Please fill all required fields",
+        "Please fill all required fields",
         "warning"
       );
       return;
@@ -307,7 +287,7 @@ const Airports = () => {
     const vehicle = vehicles.find(v => v.id === selectedVehicle);
     if (!vehicle) {
       addNotification(
-        lang === 'ar' ? "نوع المركبة المحدد غير موجود" : "Selected vehicle not found",
+        "Selected vehicle not found",
         "danger"
       );
       return;
@@ -315,9 +295,7 @@ const Airports = () => {
 
     if (bookingData.passengers > vehicle.capacity) {
       addNotification(
-        lang === 'ar' 
-          ? `عدد الركاب (${bookingData.passengers}) أكبر من سعة المركبة (${vehicle.capacity})`
-          : `Passenger count (${bookingData.passengers}) exceeds vehicle capacity (${vehicle.capacity})`,
+        `Passenger count (${bookingData.passengers}) exceeds vehicle capacity (${vehicle.capacity})`,
         "danger"
       );
       return;
@@ -326,26 +304,56 @@ const Airports = () => {
     setIsSubmitting(true);
     try {
       const reference = `AIR${Date.now().toString().slice(-6)}`;
+      const reservationDateTime = `${selectedDate} ${selectedTime}`;
+      
       const bookingDoc = {
+        airportCode: selectedAirport.code,
         airportId: selectedAirport.id,
         airportName: selectedAirport.name[lang] || selectedAirport.name.en,
-        airportCode: selectedAirport.code,
-        vehicleType: vehicle.id,
-        vehicleName: vehicle.name[lang] || vehicle.name.en,
-        vehiclePrice: vehicle.price,
+        createdAt: serverTimestamp(),
         customerName: bookingData.name,
         customerPhone: bookingData.phone,
+        language: lang,
+        maxCapacity: vehicle.capacity,
         passengerCount: bookingData.passengers,
         reservationDate: selectedDate,
+        reservationDateTime: reservationDateTime,
         reservationTime: selectedTime,
-        bookingReference: reference,
         status: 'confirmed',
-        language: lang,
-        timestamp: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        vehicleName: vehicle.name[lang] || vehicle.name.en,
+        vehicleType: vehicle.id,
+        bookingReference: reference
       };
 
-      const docRef = await addDoc(collection(db, 'airport_bookings'), bookingDoc);
+      const docRef = await addDoc(collection(db, 'airport_reservation'), bookingDoc);
       
+      // ---<<< بداية الكود الجديد لإرسال الإشعار >>>---
+      try {
+        // تجميع بيانات الإشعار
+        const notificationPayload = {
+          customerName: bookingData.name,
+          tourName: `Airport Transfer: ${selectedAirport.name[lang] || selectedAirport.name.en}`, // اسم وصفي للرحلة
+          bookingReference: reference,
+          totalAmount: vehicle?.price || 'N/A', // سعر المركبة
+          imageUrl: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?q=80&w=2070&auto=format&fit=crop', // صورة رمزية للطائرات
+        };
+
+        // إرسال البيانات إلى Netlify Function
+        await fetch('/.netlify/functions/send-booking-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(notificationPayload),
+        });
+
+      } catch (notificationError) {
+        // في حال فشل الإشعار، لا تتوقف العملية، فقط سجل الخطأ
+        console.error("Failed to send airport booking notification:", notificationError);
+      }
+      // ---<<< نهاية الكود الجديد لإرسال الإشعار >>>---
+
       // Show confirmation
       setBookingReference(reference);
       setShowConfirmation(true);
@@ -364,8 +372,9 @@ const Airports = () => {
 
     } catch (error) {
       console.error("Booking error:", error);
+      handleFirestoreError(error, 'booking submission');
       addNotification(
-        lang === 'ar' ? "فشل في إتمام الحجز" : "Booking failed",
+        "Booking failed",
         "danger"
       );
     } finally {
@@ -378,25 +387,25 @@ const Airports = () => {
     const airport = airports.find(a => a.id === selectedAirport?.id);
     
     const receiptData = `
-${lang === 'ar' ? 'إيصال حجز المطار' : 'Airport Booking Receipt'}
+Airport Booking Receipt
 ============================
-${lang === 'ar' ? 'رقم الحجز:' : 'Booking Reference:'} ${bookingReference}
-${lang === 'ar' ? 'التاريخ:' : 'Date:'} ${new Date().toLocaleDateString()}
+Booking Reference: ${bookingReference}
+Date: ${new Date().toLocaleDateString()}
 
-${lang === 'ar' ? 'تفاصيل الحجز:' : 'Booking Details:'}
-${lang === 'ar' ? 'المطار:' : 'Airport:'} ${airport?.name[lang] || airport?.name.en} (${airport?.code})
-${lang === 'ar' ? 'نوع المركبة:' : 'Vehicle:'} ${vehicle?.name[lang] || vehicle?.name.en}
-${lang === 'ar' ? 'السعر:' : 'Price:'} ${vehicle?.price} ${lang === 'ar' ? 'دولار' : 'USD'}
+Booking Details:
+Airport: ${airport?.name[lang] || airport?.name.en} (${airport?.code})
+Vehicle: ${vehicle?.name[lang] || vehicle?.name.en}
+Price: ${vehicle?.price} USD
 
-${lang === 'ar' ? 'معلومات المسافر:' : 'Passenger Information:'}
-${lang === 'ar' ? 'الاسم:' : 'Name:'} ${bookingData.name}
-${lang === 'ar' ? 'الهاتف:' : 'Phone:'} ${bookingData.phone}
-${lang === 'ar' ? 'عدد الركاب:' : 'Passengers:'} ${bookingData.passengers}
+Passenger Information:
+Name: ${bookingData.name}
+Phone: ${bookingData.phone}
+Passengers: ${bookingData.passengers}
 
-${lang === 'ar' ? 'تاريخ الرحلة:' : 'Trip Date:'} ${selectedDate}
-${lang === 'ar' ? 'وقت الرحلة:' : 'Trip Time:'} ${selectedTime}
+Trip Date: ${selectedDate}
+Trip Time: ${selectedTime}
 
-${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for choosing our service!'}
+Thank you for choosing our service!
     `;
 
     const blob = new Blob([receiptData], { type: 'text/plain' });
@@ -411,17 +420,30 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
   };
 
   const ConnectionStatusIndicator = () => {
-    if (connectionStatus === 'disconnected') {
-      return (
-        <Alert variant="warning" className="position-fixed bottom-0 end-0 m-3" style={{ zIndex: 9999 }}>
-          <div className="d-flex align-items-center">
-            <FaExclamationTriangle className="me-2" />
-            <span>{t.connectionError}</span>
-          </div>
-        </Alert>
-      );
-    }
-    return null;
+    const statusMessages = {
+      connected: "Connected",
+      connecting: "Connecting...",
+      disconnected: "Disconnected. Retrying...",
+      error: "Connection Error"
+    };
+
+    const statusIcons = {
+      connected: FaCheckCircle,
+      connecting: FaSync,
+      disconnected: FaExclamationTriangle,
+      error: FaExclamationCircle
+    };
+
+    const StatusIcon = statusIcons[connectionStatus];
+    const statusColor = connectionStatus === 'connected' ? 'success' : 
+                       connectionStatus === 'connecting' ? 'warning' : 'danger';
+
+    return (
+      <Alert variant={statusColor} className="position-fixed bottom-0 end-0 m-3 d-flex align-items-center" style={{ zIndex: 9999 }}>
+        <StatusIcon className="me-2" />
+        <span>{statusMessages[connectionStatus]}</span>
+      </Alert>
+    );
   };
 
   if (isLoading) {
@@ -445,7 +467,19 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
             style={{ color: colors.primary, cursor: 'pointer' }}
             onClick={() => navigate('/')}
           >
-            <FaPlane className="me-2" />
+                  <img
+                    src={company_logo}
+                    alt="Company Logo"
+                    height="35"
+                    className="me-2"
+                    style={{ 
+                      objectFit: "contain",
+                      transition: "opacity 0.3s ease"
+                    }}
+                    onMouseEnter={(e) => e.target.style.opacity = "0.8"}
+                    onMouseLeave={(e) => e.target.style.opacity = "1"}
+                  />
+                    <FaPlane className="me-2" />
             {t.title}
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -555,7 +589,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                         <option value="">{t.selectVehicle}</option>
                         {vehicles.map(vehicle => (
                           <option key={vehicle.id} value={vehicle.id}>
-                            {vehicle.name[lang] || vehicle.name.en} - {vehicle.price} {lang === 'ar' ? 'دولار' : 'USD'}
+                            {vehicle.name[lang] || vehicle.name.en}
                           </option>
                         ))}
                       </Form.Select>
@@ -651,7 +685,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                   <div className="mt-5">
                     <h4 className="mb-4 d-flex align-items-center">
                       <FaCar className="me-3" />
-                      {lang === 'ar' ? 'خيارات المركبات المتاحة' : 'Available Vehicle Options'}
+                      Available Vehicle Options
                     </h4>
                     <Row>
                       {vehicles.map(vehicle => {
@@ -685,10 +719,10 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                                 </h5>
                                 <div className="d-flex justify-content-center gap-2 mb-3">
                                   <Badge bg="light" text="dark" className="px-3 py-2">
-                                    {vehicle.capacity} {lang === 'ar' ? 'راكب' : 'passengers'}
+                                    {vehicle.capacity} passengers
                                   </Badge>
                                   <Badge bg="info" className="px-3 py-2">
-                                    {vehicle.price} {lang === 'ar' ? 'دولار' : 'USD'}
+                                    {/* {vehicle.price} USD */}
                                   </Badge>
                                 </div>
                                 <div className="d-flex flex-wrap justify-content-center gap-1 mb-3">
@@ -769,11 +803,11 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
               <FaCheck size={50} style={{ color: colors.secondary }} />
             </div>
             <h4 className="mb-3">
-              {lang === 'ar' ? 'تم تأكيد حجزك بنجاح!' : 'Your booking has been confirmed!'}
+              Your booking has been confirmed!
             </h4>
             <Alert variant="success" className="d-inline-block px-4 py-2">
               <strong>
-                {lang === 'ar' ? 'رقم الحجز:' : 'Booking Reference:'} {bookingReference}
+                Booking Reference: {bookingReference}
               </strong>
             </Alert>
           </div>
@@ -782,7 +816,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
             <Card.Header style={{ backgroundColor: colors.primary, color: 'white' }}>
               <h5 className="mb-0 d-flex align-items-center">
                 <FaMapMarkerAlt className="me-2" />
-                {lang === 'ar' ? 'تفاصيل الحجز' : 'Booking Details'}
+                Booking Details
               </h5>
             </Card.Header>
             <Card.Body>
@@ -802,7 +836,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                     </div>
                     <div>
                       <small className="text-muted d-block">
-                        {lang === 'ar' ? 'المطار' : 'Airport'}
+                        Airport
                       </small>
                       <strong>
                         {selectedAirport?.name[lang] || selectedAirport?.name.en} ({selectedAirport?.code})
@@ -825,7 +859,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                     </div>
                     <div>
                       <small className="text-muted d-block">
-                        {lang === 'ar' ? 'المركبة' : 'Vehicle'}
+                        Vehicle
                       </small>
                       <strong>
                         {vehicles.find(v => v.id === selectedVehicle)?.name[lang] || 
@@ -843,7 +877,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                       <FaCalendarAlt size={30} style={{ color: colors.secondary }} />
                     </div>
                     <h6 className="mb-1">
-                      {lang === 'ar' ? 'تاريخ الرحلة' : 'Trip Date'}
+                      Trip Date
                     </h6>
                     <small className="text-muted">
                       {selectedDate}
@@ -856,7 +890,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                       <FaClock size={30} style={{ color: colors.accent }} />
                     </div>
                     <h6 className="mb-1">
-                      {lang === 'ar' ? 'وقت الرحلة' : 'Trip Time'}
+                      Trip Time
                     </h6>
                     <small className="text-muted">
                       {selectedTime}
@@ -871,7 +905,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
             <Card.Header style={{ backgroundColor: colors.light }}>
               <h5 className="mb-0 d-flex align-items-center">
                 <FaUser className="me-2" />
-                {lang === 'ar' ? 'معلومات المسافر' : 'Passenger Information'}
+                Passenger Information
               </h5>
             </Card.Header>
             <Card.Body>
@@ -879,7 +913,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                 <Col md={6}>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">
-                      {lang === 'ar' ? 'الاسم:' : 'Name:'}
+                      Name:
                     </span>
                     <strong>{bookingData.name}</strong>
                   </div>
@@ -887,7 +921,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
                 <Col md={6}>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">
-                      {lang === 'ar' ? 'الهاتف:' : 'Phone:'}
+                      Phone:
                     </span>
                     <strong>{bookingData.phone}</strong>
                   </div>
@@ -901,23 +935,17 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
               <FaInfoCircle className="me-2 mt-1" />
               <div>
                 <strong>
-                  {lang === 'ar' ? 'معلومات مهمة:' : 'Important Information:'}
+                  Important Information:
                 </strong>
                 <ul className="mb-0 mt-2">
                   <li>
-                    {lang === 'ar' 
-                      ? 'الرجاء حفظ رقم الحجز للرجوع إليه لاحقاً' 
-                      : 'Please save your booking reference for future reference'}
+                    Please save your booking reference for future reference
                   </li>
                   <li>
-                    {lang === 'ar' 
-                      ? 'سوف تتلقى رسالة تأكيد بالبريد الإلكتروني' 
-                      : 'You will receive a confirmation email'}
+                    You will receive a confirmation email
                   </li>
                   <li>
-                    {lang === 'ar' 
-                      ? 'يمكنك التواصل معنا على الرقم 0123456789 لأي استفسارات' 
-                      : 'You can contact us at 0123456789 for any inquiries'}
+                    You can contact us at 0123456789 for any inquiries
                   </li>
                 </ul>
               </div>
@@ -931,7 +959,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
             className="d-flex align-items-center"
           >
             <FaDownload className="me-2" />
-            {lang === 'ar' ? 'تحميل الإيصال' : 'Download Receipt'}
+            Download Receipt
           </Button>
           <Button
             variant="primary"
@@ -941,7 +969,7 @@ ${lang === 'ar' ? 'شكراً لاختياركم خدمتنا!' : 'Thank you for
               border: 'none',
             }}
           >
-            {lang === 'ar' ? 'إغلاق' : 'Close'}
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

@@ -68,6 +68,7 @@ import {
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import Tour1 from "../assets/getimage_32b1b85a-085a-4618-8327-70eb4ccafc60.webp";
+import company_logo from "../assets/company_logo.jpeg";
 
 const EgyptTours = () => {
   const navigate = useNavigate();
@@ -95,6 +96,7 @@ const EgyptTours = () => {
     city: "",
     duration: "",
     type: "all",
+    vehicleType: "all", // New filter
     priceRange: [0, 1000],
     sortBy: "popularity",
   });
@@ -275,26 +277,50 @@ const EgyptTours = () => {
   const filteredTours = useMemo(() => {
     return tours
       .filter((tour) => {
+        // City filter
         if (searchFilters.city && tour.city !== searchFilters.city)
           return false;
-        if (searchFilters.duration && tour.duration !== searchFilters.duration)
+
+        // Duration filter
+        if (searchFilters.duration === "short" && tour.duration >= 4)
           return false;
+        if (
+          searchFilters.duration === "half-day" &&
+          (tour.duration < 4 || tour.duration > 6)
+        )
+          return false;
+        if (searchFilters.duration === "full-day" && tour.duration < 7)
+          return false;
+
+        // Type filter
         if (
           searchFilters.type !== "all" &&
           !tour.types.includes(searchFilters.type)
         )
           return false;
+
+        // Vehicle type filter
+        if (
+          searchFilters.vehicleType !== "all" &&
+          tour.vehicleType !== searchFilters.vehicleType
+        )
+          return false;
+
+        // Price range filter
         if (
           tour.price < searchFilters.priceRange[0] ||
           tour.price > searchFilters.priceRange[1]
         )
           return false;
+
         return true;
       })
       .sort((a, b) => {
         switch (searchFilters.sortBy) {
-          case "price":
+          case "price-asc":
             return a.price - b.price;
+          case "price-desc":
+            return b.price - a.price;
           case "duration":
             return a.duration - b.duration;
           case "popularity":
@@ -407,117 +433,126 @@ const EgyptTours = () => {
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!validateForm()) {
-      addNotification(
-        language === "ar"
-          ? "الرجاء ملء جميع الحقول المطلوبة بشكل صحيح"
-          : "Please fill in all required fields correctly",
-        "danger"
-      );
-      return;
-    }
+  if (!validateForm()) {
+    addNotification(
+      language === "ar"
+        ? "الرجاء ملء جميع الحقول المطلوبة بشكل صحيح"
+        : "Please fill in all required fields correctly",
+      "danger"
+    );
+    return;
+  }
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
+  try {
+    // Generate booking reference
+    const reference = `ET${Date.now().toString().slice(-6)}`;
+
+    // Get tour and vehicle details
+    const tour = tours.find((t) => t.id === formData.tourId);
+    const vehicle = vehicles.find((v) => v.id === formData.vehicleType);
+
+    // Parse numbers to avoid NaN issues
+    const tourPrice = parseFloat(tour?.price) || 0;
+    const vehiclePrice = parseFloat(vehicle?.price) || 0;
+    const participants = parseInt(formData.participants) || 1;
+
+    // Calculate total amount
+    const totalAmount = tourPrice * participants + vehiclePrice;
+
+    // Log for debugging
+    console.log("Calculated totalAmount:", totalAmount);
+
+    // Create booking data
+    const bookingData = {
+      ...formData,
+      bookingReference: reference,
+      timestamp: serverTimestamp(),
+      status: "confirmed",
+      language: language,
+      tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
+      tourCity: tour?.city,
+      tourDuration: tour?.duration,
+      tourPrice: tourPrice, // Use parsed value
+      vehicleName: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
+      vehiclePrice: vehiclePrice, // Use parsed value
+      totalAmount: totalAmount, // Explicitly include
+    };
+
+    // Add to Firestore
+    const docRef = await addDoc(collection(db, "bookings"), bookingData);
+    console.log("Booking saved with ID:", docRef.id);
+
+    // Send notification (optional)
     try {
-      // Generate booking reference
-      const reference = `ET${Date.now().toString().slice(-6)}`;
-
-      // Get tour and vehicle details
-      const tour = tours.find((t) => t.id === formData.tourId);
-      const vehicle = vehicles.find((v) => v.id === formData.vehicleType);
-
-      // Create booking data
-      const bookingData = {
-        ...formData,
-        bookingReference: reference,
-        timestamp: serverTimestamp(),
-        status: "confirmed",
-        language: language,
+      const notificationPayload = {
+        tourCity: tour?.city || "Unknown City",
         tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
-        tourCity: tour?.city,
-        tourDuration: tour?.duration,
-        tourPrice: tour?.price,
-        vehicleName:
-          vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
-        vehiclePrice: vehicle?.price || 0,
-        totalAmount:
-          tour?.price * formData.participants + (vehicle?.price || 0),
+        customerName: formData.fullName,
+        bookingReference: reference,
+        totalAmount: totalAmount, // Include in notification
+        vehicleType: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
+        imageUrl: tour?.imageUrl || "default_image_url.jpg",
       };
 
-      // Add to Firestore
-      await addDoc(collection(db, "bookings"), bookingData);
-
-      try {
-        const notificationPayload = {
-          tourCity: tour?.city || "Unknown City",
-          tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
-          customerName: formData.fullName,
-          bookingReference: reference,
-          totalAmount: bookingData.totalAmount,
-          vehicleType:
-            vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
-          imageUrl:
-            tour?.imageUrl ||
-            "https://orionmagazine.org/wp-content/uploads/2015/09/8589130570139-dusk-camel-pyramids-cairo-egypt-top-travel-lists-wallpaper-hd.jpg",
-        };
-
-        await fetch("/.netlify/functions/send-booking-notification", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(notificationPayload),
-        });
-      } catch (notificationError) {
-        console.error("Failed to send notification:", notificationError);
-      }
-
-      // Increment tour popularity
-      if (tour?.id) {
-        const tourRef = doc(db, "tours", tour.id);
-        await updateDoc(tourRef, {
-          popularity: increment(1),
-        });
-      }
-
-      setBookingReference(reference);
-      addNotification(
-        language === "ar"
-          ? "تم تأكيد الحجز بنجاح!"
-          : "Booking confirmed successfully!",
-        "success"
-      );
-
-      // Reset form
-      setFormData({
-        tourId: "",
-        fullName: "",
-        phoneNumber: "",
-        email: "",
-        nationality: "",
-        participants: 1,
-        tourDate: "",
-        vehicleType: "",
-        specialRequests: "",
+      await fetch("/.netlify/functions/send-booking-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notificationPayload),
       });
-
-      // Show confirmation
-      setShowBookingModal(false);
-      setShowConfirmation(true);
-    } catch (error) {
-      console.error("Booking error:", error);
-      addNotification(
-        language === "ar"
-          ? "فشل في إتمام الحجز. الرجاء المحاولة مرة أخرى."
-          : "Failed to complete booking. Please try again.",
-        "danger"
-      );
-    } finally {
-      setIsSubmitting(false);
+    } catch (notificationError) {
+      console.error("Failed to send notification:", notificationError);
     }
-  };
+
+    // Increment tour popularity
+    if (tour?.id) {
+      const tourRef = doc(db, "tours", tour.id);
+      await updateDoc(tourRef, {
+        popularity: increment(1),
+      });
+    }
+
+    setBookingReference(reference);
+    addNotification(
+      language === "ar"
+        ? "تم تأكيد الحجز بنجاح!"
+        : "Booking confirmed successfully!",
+      "success"
+    );
+
+    // Reset form
+    setFormData({
+      tourId: "",
+      fullName: "",
+      phoneNumber: "",
+      email: "",
+      nationality: "",
+      participants: 1,
+      tourDate: "",
+      vehicleType: "",
+      specialRequests: "",
+    });
+
+    // Show confirmation
+    setShowBookingModal(false);
+    setShowConfirmation(true);
+
+  } catch (error) {
+    console.error("Booking error:", error);
+    addNotification(
+      language === "ar"
+        ? "فشل في إتمام الحجز. الرجاء المحاولة مرة أخرى."
+        : "Failed to complete booking. Please try again.",
+      "danger"
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Input change handler
   const handleInputChange = (field, value) => {
@@ -777,6 +812,18 @@ ${language === "ar" ? "شكرًا لاختياركم جولات مصر!" : "Than
             style={{ color: "#1E40AF" }}
             onClick={() => navigate("/")}
           >
+                  <img
+        src={company_logo} // Replace with your actual logo path
+        alt="Company Logo"
+        height="35"
+        className="me-2"
+        style={{ 
+          objectFit: "contain",
+          transition: "opacity 0.3s ease"
+        }}
+        onMouseEnter={(e) => e.target.style.opacity = "0.8"}
+        onMouseLeave={(e) => e.target.style.opacity = "1"}
+      />
             {t.appName}
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -959,6 +1006,35 @@ ${language === "ar" ? "شكرًا لاختياركم جولات مصر!" : "Than
                       </Form.Select>
                     </FloatingLabel>
                   </Col>
+                  <Col md={4}>
+                    <FloatingLabel
+                      label={language === "ar" ? "نوع المركبة" : "Vehicle Type"}
+                    >
+                      <Form.Select
+                        value={searchFilters.vehicleType}
+                        onChange={(e) =>
+                          setSearchFilters((prev) => ({
+                            ...prev,
+                            vehicleType: e.target.value,
+                          }))
+                        }
+                        className="border-0 shadow-sm"
+                      >
+                        <option value="all">
+                          {language === "ar" ? "جميع المركبات" : "All Vehicles"}
+                        </option>
+                        <option value="minibus">
+                          {language === "ar" ? "ميني باص" : "Minibus"}
+                        </option>
+                        <option value="suv">
+                          {language === "ar" ? "سيارة دفع رباعي" : "SUV"}
+                        </option>
+                        <option value="sedan">
+                          {language === "ar" ? "سيارة سيدان" : "Sedan"}
+                        </option>
+                      </Form.Select>
+                    </FloatingLabel>
+                  </Col>
                 </Row>
 
                 {/* Price Range Filter */}
@@ -1058,6 +1134,7 @@ ${language === "ar" ? "شكرًا لاختياركم جولات مصر!" : "Than
               return (
                 <Col md={4} key={tour.id} className="mb-4">
                   <Card className="h-100 border-0 shadow-sm position-relative">
+                    {/* Popular and Top Rated badges remain the same */}
                     {isPopular && (
                       <div className="position-absolute top-0 start-0 m-2">
                         <Badge bg="danger">
@@ -1073,6 +1150,7 @@ ${language === "ar" ? "شكرًا لاختياركم جولات مصر!" : "Than
                         </Badge>
                       </div>
                     )}
+
                     <Card.Img
                       variant="top"
                       src={Tour1}
@@ -1096,6 +1174,23 @@ ${language === "ar" ? "شكرًا لاختياركم جولات مصر!" : "Than
                           {tour.price} {language === "ar" ? "دولار" : "USD"}
                         </h6>
                       </div>
+
+                      {/* Add vehicle type display here */}
+                      <div className="mb-2">
+                        <small className="text-muted d-flex align-items-center">
+                          <FaCar className="me-2" />
+                          {language === "ar" ? "وسيلة النقل" : "Vehicle"}:{" "}
+                          <span className="ms-1 fw-bold">
+                            {tour.vehicleType === "minibus" &&
+                              (language === "ar" ? "ميني باص" : "Minibus")}
+                            {tour.vehicleType === "suv" &&
+                              (language === "ar" ? "سيارة دفع رباعي" : "SUV")}
+                            {tour.vehicleType === "sedan" &&
+                              (language === "ar" ? "سيارة سيدان" : "Sedan")}
+                          </span>
+                        </small>
+                      </div>
+
                       <p className="text-muted small mb-3">
                         {tour.shortDescription?.[language] ||
                           tour.shortDescription?.en ||
@@ -1500,7 +1595,7 @@ ${language === "ar" ? "شكرًا لاختياركم جولات مصر!" : "Than
                         {vehicle.name?.[language] ||
                           vehicle.name?.en ||
                           vehicle.name}{" "}
-                        -{vehicle.price} {language === "ar" ? "دولار" : "USD"} (
+                        (
                         {language === "ar" ? "سعة" : "Capacity"}:{" "}
                         {vehicle.capacity})
                       </option>
