@@ -496,7 +496,7 @@ const handleSubmit = async (e) => {
         bookingReference: reference,
         totalAmount: totalAmount, // Include in notification
         vehicleType: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
-        imageUrl: tour?.imageUrl || "default_image_url.jpg",
+        imageUrl: tour?.imageUrl || "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
       };
 
       await fetch("/.netlify/functions/send-booking-notification", {
