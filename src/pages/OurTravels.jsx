@@ -489,16 +489,20 @@ const handleSubmit = async (e) => {
 
     // Send notification (optional)
     try {
-      const notificationPayload = {
-        tourCity: tour?.city || "Unknown City",
-        tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
-        customerName: formData.fullName,
-        bookingReference: reference,
-        totalAmount: totalAmount, // Include in notification
-        vehicleType: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
-        imageUrl: tour?.imageUrl || "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-      };
+      // الكود المُعدَّل
+const notificationPayload = {
+  tourCity: tour?.city || "Unknown City",
+  tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
+  customerName: formData.fullName,
+  bookingReference: reference,
+  vehicleType: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
+  imageUrl: tour?.imageUrl || "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+};
 
+// أضف المبلغ الإجمالي فقط إذا كان رقمًا صالحًا
+if (!isNaN(totalAmount)) {
+  notificationPayload.totalAmount = totalAmount;
+}
       await fetch("/.netlify/functions/send-booking-notification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
