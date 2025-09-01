@@ -16,8 +16,29 @@ try {
 }
 
 exports.handler = async (event) => {
+  // Define CORS headers to allow requests from your Firebase domain
+  const headers = {
+    'Access-Control-Allow-Origin': 'https://quran-web-1.web.app',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  // Browsers send an OPTIONS request first to check CORS policy (preflight request)
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204, // No Content
+      headers,
+      body: ''
+    };
+  }
+
+  // Ensure the request is a POST request for the actual logic
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+    return { 
+      statusCode: 405, 
+      headers, 
+      body: 'Method Not Allowed' 
+    };
   }
 
   try {
@@ -27,33 +48,34 @@ exports.handler = async (event) => {
     const tokensSnapshot = await db.collection('admin_tokens').get();
     if (tokensSnapshot.empty) {
       console.log('No device tokens found.');
-      return { statusCode: 200, body: 'No tokens.' };
+      return { 
+        statusCode: 200, 
+        headers, 
+        body: 'No tokens.' 
+      };
     }
 
     const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
-    const uniqueTokens = [...new Set(tokens)]; // De-duplicate tokens to prevent double notifications
+    const uniqueTokens = [...new Set(tokens)];
 
-    // بناء رسالة إشعار احترافية
     const messagePayload = {
       notification: {
         title: `🎉 حجز جديد من: ${details.customerName}`,
         body: `تم تأكيد حجز لـ "${details.tourName}" بمبلغ إجمالي ${details.totalAmount || 'N/A'} جنيه.`,
       },
       data: {
-        // بيانات إضافية لفتح الحجز مباشرة عند الضغط على الإشعار
         bookingId: details.bookingReference || '',
         customerName: details.customerName || '',
         tourName: details.tourName || '',
-        screen: 'BookingDetails', // اسم الشاشة التي ستفتح في التطبيق
+        screen: 'BookingDetails',
       },
-      // تخصيص الإشعارات للأنظمة المختلفة
       android: {
         priority: 'high',
         notification: {
-          icon: 'ic_notification', // تأكد من وجود أيقونة بهذا الاسم في تطبيق الأندرويد
-          color: '#1E40AF', // لون الأيقونة
+          icon: 'ic_notification',
+          color: '#1E40AF',
           sound: 'default',
-          imageUrl: details.imageUrl || '', // رابط صورة لعرضها في الإشعار
+          imageUrl: details.imageUrl || '',
         },
       },
       apns: {
@@ -64,7 +86,7 @@ exports.handler = async (event) => {
           },
         },
         fcm_options: {
-          image: details.imageUrl || '', // رابط صورة لعرضها في الإشعار (iOS)
+          image: details.imageUrl || '',
         },
       },
     };
@@ -89,12 +111,14 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
+      headers,
       body: JSON.stringify({ message: "Notifications sent successfully!" }),
     };
   } catch (error) {
     console.error('Error sending notification:', error);
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({ error: 'Failed to send notifications.' }),
     };
   }
