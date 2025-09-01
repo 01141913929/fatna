@@ -16,23 +16,40 @@ try {
 }
 
 exports.handler = async (event) => {
-  // Define CORS headers to allow requests from your Firebase domain
+  // ## بداية التعديل ##
+
+  // 1. إنشاء قائمة بالمواقع المسموح لها بالاتصال
+  const allowedOrigins = [
+    'https://fatna.netlify.app',
+    'https://quran-web-1.web.app'
+  ];
+
+  // 2. الحصول على مصدر الطلب القادم من المتصفح
+  const origin = event.headers.origin;
+  
+  // 3. إعداد الهيدرز الأساسية
   const headers = {
-    'Access-Control-Allow-Origin': 'https://quran-web-1.web.app',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
-  // Browsers send an OPTIONS request first to check CORS policy (preflight request)
+  // 4. التحقق إذا كان مصدر الطلب ضمن القائمة المسموح بها
+  if (allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  
+  // ## نهاية التعديل ##
+
+  // Browsers send an OPTIONS request first to check CORS policy
   if (event.httpMethod === 'OPTIONS') {
     return {
-      statusCode: 204, // No Content
+      statusCode: 204,
       headers,
       body: ''
     };
   }
 
-  // Ensure the request is a POST request for the actual logic
+  // Ensure the request is a POST request
   if (event.httpMethod !== 'POST') {
     return { 
       statusCode: 405, 
@@ -55,9 +72,9 @@ exports.handler = async (event) => {
       };
     }
 
+    // ... باقي الكود يبقى كما هو بدون تغيير ...
     const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
     const uniqueTokens = [...new Set(tokens)];
-
     const messagePayload = {
       notification: {
         title: `🎉 حجز جديد من: ${details.customerName}`,
@@ -92,21 +109,10 @@ exports.handler = async (event) => {
     };
 
     if (uniqueTokens.length > 0) {
-        const response = await admin.messaging().sendEachForMulticast({
+        await admin.messaging().sendEachForMulticast({
             tokens: uniqueTokens,
             ...messagePayload,
         });
-
-        console.log('Successfully sent messages:', response.successCount);
-        if (response.failureCount > 0) {
-            const failedTokens = [];
-            response.responses.forEach((resp, idx) => {
-                if (!resp.success) {
-                failedTokens.push({ token: uniqueTokens[idx], error: resp.error.message });
-                }
-            });
-            console.log('Failed messages:', failedTokens);
-        }
     }
 
     return {
