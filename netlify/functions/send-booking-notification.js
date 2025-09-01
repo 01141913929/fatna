@@ -16,46 +16,8 @@ try {
 }
 
 exports.handler = async (event) => {
-  // ## بداية التعديل ##
-
-  // 1. إنشاء قائمة بالمواقع المسموح لها بالاتصال
-  const allowedOrigins = [
-    'https://fatna.netlify.app',
-    'https://quran-web-1.web.app'
-  ];
-
-  // 2. الحصول على مصدر الطلب القادم من المتصفح
-  const origin = event.headers.origin;
-  
-  // 3. إعداد الهيدرز الأساسية
-  const headers = {
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
-
-  // 4. التحقق إذا كان مصدر الطلب ضمن القائمة المسموح بها
-  if (allowedOrigins.includes(origin)) {
-    headers['Access-Control-Allow-Origin'] = origin;
-  }
-  
-  // ## نهاية التعديل ##
-
-  // Browsers send an OPTIONS request first to check CORS policy
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers,
-      body: ''
-    };
-  }
-
-  // Ensure the request is a POST request
   if (event.httpMethod !== 'POST') {
-    return { 
-      statusCode: 405, 
-      headers, 
-      body: 'Method Not Allowed' 
-    };
+    return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
@@ -65,34 +27,33 @@ exports.handler = async (event) => {
     const tokensSnapshot = await db.collection('admin_tokens').get();
     if (tokensSnapshot.empty) {
       console.log('No device tokens found.');
-      return { 
-        statusCode: 200, 
-        headers, 
-        body: 'No tokens.' 
-      };
+      return { statusCode: 200, body: 'No tokens.' };
     }
 
-    // ... باقي الكود يبقى كما هو بدون تغيير ...
     const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
-    const uniqueTokens = [...new Set(tokens)];
+    const uniqueTokens = [...new Set(tokens)]; // De-duplicate tokens to prevent double notifications
+
+    // بناء رسالة إشعار احترافية
     const messagePayload = {
       notification: {
         title: `🎉 حجز جديد من: ${details.customerName}`,
         body: `تم تأكيد حجز لـ "${details.tourName}" بمبلغ إجمالي ${details.totalAmount || 'N/A'} جنيه.`,
       },
       data: {
+        // بيانات إضافية لفتح الحجز مباشرة عند الضغط على الإشعار
         bookingId: details.bookingReference || '',
         customerName: details.customerName || '',
         tourName: details.tourName || '',
-        screen: 'BookingDetails',
+        screen: 'BookingDetails', // اسم الشاشة التي ستفتح في التطبيق
       },
+      // تخصيص الإشعارات للأنظمة المختلفة
       android: {
         priority: 'high',
         notification: {
-          icon: 'ic_notification',
-          color: '#1E40AF',
+          icon: 'ic_notification', // تأكد من وجود أيقونة بهذا الاسم في تطبيق الأندرويد
+          color: '#1E40AF', // لون الأيقونة
           sound: 'default',
-          imageUrl: details.imageUrl || '',
+          imageUrl: details.imageUrl || '', // رابط صورة لعرضها في الإشعار
         },
       },
       apns: {
@@ -103,28 +64,37 @@ exports.handler = async (event) => {
           },
         },
         fcm_options: {
-          image: details.imageUrl || '',
+          image: details.imageUrl || '', // رابط صورة لعرضها في الإشعار (iOS)
         },
       },
     };
 
     if (uniqueTokens.length > 0) {
-        await admin.messaging().sendEachForMulticast({
+        const response = await admin.messaging().sendEachForMulticast({
             tokens: uniqueTokens,
             ...messagePayload,
         });
+
+        console.log('Successfully sent messages:', response.successCount);
+        if (response.failureCount > 0) {
+            const failedTokens = [];
+            response.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                failedTokens.push({ token: uniqueTokens[idx], error: resp.error.message });
+                }
+            });
+            console.log('Failed messages:', failedTokens);
+        }
     }
 
     return {
       statusCode: 200,
-      headers,
       body: JSON.stringify({ message: "Notifications sent successfully!" }),
     };
   } catch (error) {
     console.error('Error sending notification:', error);
     return {
       statusCode: 500,
-      headers,
       body: JSON.stringify({ error: 'Failed to send notifications.' }),
     };
   }

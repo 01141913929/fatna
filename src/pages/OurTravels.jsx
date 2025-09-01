@@ -433,7 +433,6 @@ const EgyptTours = () => {
   };
 
   // Handle form submission
-// الصق هذه الدالة الجديدة بالكامل مكان الدالة القديمة
 const handleSubmit = async (e) => {
   e.preventDefault();
 
@@ -464,6 +463,8 @@ const handleSubmit = async (e) => {
 
     // Calculate total amount
     const totalAmount = tourPrice * participants + vehiclePrice;
+
+    // Log for debugging
     console.log("Calculated totalAmount:", totalAmount);
 
     // Create booking data
@@ -476,46 +477,36 @@ const handleSubmit = async (e) => {
       tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
       tourCity: tour?.city,
       tourDuration: tour?.duration,
-      tourPrice: tourPrice,
+      tourPrice: tourPrice, // Use parsed value
       vehicleName: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
-      vehiclePrice: vehiclePrice,
-      totalAmount: totalAmount,
+      vehiclePrice: vehiclePrice, // Use parsed value
+      totalAmount: totalAmount, // Explicitly include
     };
 
     // Add to Firestore
     const docRef = await addDoc(collection(db, "bookings"), bookingData);
     console.log("Booking saved with ID:", docRef.id);
 
-    // ================== بداية كود تصحيح الإشعارات ==================
+    // Send notification (optional)
     try {
-        const notificationPayload = {
-            tourCity: tour?.city || "Unknown City",
-            tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
-            customerName: formData.fullName,
-            bookingReference: reference,
-            totalAmount: totalAmount,
-            imageUrl: tour?.imageUrl || "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-        };
+      const notificationPayload = {
+        tourCity: tour?.city || "Unknown City",
+        tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
+        customerName: formData.fullName,
+        bookingReference: reference,
+        totalAmount: totalAmount, // Include in notification
+        vehicleType: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
+        imageUrl: tour?.imageUrl || "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+      };
 
-        console.log("البيانات التي سيتم إرسالها في الإشعار:", notificationPayload);
-
-        const response = await fetch("/.netlify/functions/send-booking-notification", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(notificationPayload),
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            console.log("✅ نجح الإشعار: استجابة الخادم:", result);
-        } else {
-            const errorText = await response.text();
-            console.error(`❌ فشل الإشعار: الخادم أرجع الحالة ${response.status}. السبب:`, errorText);
-        }
-    } catch (networkError) {
-        console.error("❌ خطأ فادح: فشل طلب الشبكة الخاص بالإشعار:", networkError);
+      await fetch("/.netlify/functions/send-booking-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notificationPayload),
+      });
+    } catch (notificationError) {
+      console.error("Failed to send notification:", notificationError);
     }
-    // =================== نهاية كود تصحيح الإشعارات ===================
 
     // Increment tour popularity
     if (tour?.id) {
