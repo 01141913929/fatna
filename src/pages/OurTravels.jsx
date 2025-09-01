@@ -433,6 +433,7 @@ const EgyptTours = () => {
   };
 
   // Handle form submission
+// الصق هذه الدالة الجديدة بالكامل مكان الدالة القديمة
 const handleSubmit = async (e) => {
   e.preventDefault();
 
@@ -463,8 +464,6 @@ const handleSubmit = async (e) => {
 
     // Calculate total amount
     const totalAmount = tourPrice * participants + vehiclePrice;
-
-    // Log for debugging
     console.log("Calculated totalAmount:", totalAmount);
 
     // Create booking data
@@ -477,54 +476,46 @@ const handleSubmit = async (e) => {
       tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
       tourCity: tour?.city,
       tourDuration: tour?.duration,
-      tourPrice: tourPrice, // Use parsed value
+      tourPrice: tourPrice,
       vehicleName: vehicle?.name?.[language] || vehicle?.name?.en || vehicle?.name,
-      vehiclePrice: vehiclePrice, // Use parsed value
-      totalAmount: totalAmount, // Explicitly include
+      vehiclePrice: vehiclePrice,
+      totalAmount: totalAmount,
     };
 
     // Add to Firestore
     const docRef = await addDoc(collection(db, "bookings"), bookingData);
     console.log("Booking saved with ID:", docRef.id);
 
-    // Send notification (optional)
-    // ---<<< الكود الجديد والمُحسَّن (للإضافة) >>>---
-try {
-  const tour = tours.find((t) => t.id === formData.tourId);
-  const vehicle = vehicles.find((v) => v.id === formData.vehicleType);
-  const totalAmount = (parseFloat(tour?.price) || 0) * (parseInt(formData.participants) || 1) + (parseFloat(vehicle?.price) || 0);
+    // ================== بداية كود تصحيح الإشعارات ==================
+    try {
+        const notificationPayload = {
+            tourCity: tour?.city || "Unknown City",
+            tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
+            customerName: formData.fullName,
+            bookingReference: reference,
+            totalAmount: totalAmount,
+            imageUrl: tour?.imageUrl || "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+        };
 
-  const notificationPayload = {
-    tourCity: tour?.city || "Unknown City",
-    tourName: tour?.name?.[language] || tour?.name?.en || tour?.name,
-    customerName: formData.fullName,
-    bookingReference: reference,
-    totalAmount: totalAmount,
-    imageUrl: tour?.imageUrl || "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-  };
+        console.log("البيانات التي سيتم إرسالها في الإشعار:", notificationPayload);
 
-  console.log("البيانات التي سيتم إرسالها في الإشعار:", notificationPayload);
+        const response = await fetch("/.netlify/functions/send-booking-notification", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(notificationPayload),
+        });
 
-  const response = await fetch("/.netlify/functions/send-booking-notification", {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(notificationPayload),
-  });
-
-  // التحقق من استجابة الخادم
-  if (response.ok) {
-    const result = await response.json();
-    console.log("✅ نجح الإشعار: استجابة الخادم:", result);
-  } else {
-    // هذا الجزء سيكشف لنا الخطأ إذا كان من الخادم
-    const errorText = await response.text();
-    console.error(`❌ فشل الإشعار: الخادم أرجع الحالة ${response.status}. السبب:`, errorText);
-  }
-
-} catch (networkError) {
-  // هذا الجزء سيكشف لنا الخطأ إذا كان في الشبكة نفسها
-  console.error("❌ خطأ فادح: فشل طلب الشبكة الخاص بالإشعار:", networkError);
-}
+        if (response.ok) {
+            const result = await response.json();
+            console.log("✅ نجح الإشعار: استجابة الخادم:", result);
+        } else {
+            const errorText = await response.text();
+            console.error(`❌ فشل الإشعار: الخادم أرجع الحالة ${response.status}. السبب:`, errorText);
+        }
+    } catch (networkError) {
+        console.error("❌ خطأ فادح: فشل طلب الشبكة الخاص بالإشعار:", networkError);
+    }
+    // =================== نهاية كود تصحيح الإشعارات ===================
 
     // Increment tour popularity
     if (tour?.id) {
