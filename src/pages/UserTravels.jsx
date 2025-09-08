@@ -810,17 +810,15 @@ const EgyptTravelHome = () => {
 
       const docRef = await addDoc(collection(db, "bookings"), bookingData);
 
+    
+  
       try {
         const vehicle = vehicles.find((v) => v.id === bookingData.carType);
         const notificationPayload = {
-          tourCity: bookingData.departureGovernorate,
-          tourName: `Trip from ${bookingData.departureCity} to ${bookingData.destinationCity}`,
           customerName: bookingData.fullName,
+          tourName: `Trip from ${bookingData.departureCity} to ${bookingData.destinationCity}`,
           bookingReference: reference,
-          totalAmount: vehiclePrice || vehicle?.price,
-          imageUrl:
-            vehicle?.imageUrl ||
-            "https://orionmagazine.org/wp-content/uploads/2015/09/8589130570139-dusk-camel-pyramids-cairo-egypt-top-travel-lists-wallpaper-hd.jpg",
+          imageUrl: vehicle?.imageUrl || "https://orionmagazine.org/wp-content/uploads/2015/09/8589130570139-dusk-camel-pyramids-cairo-egypt-top-travel-lists-wallpaper-hd.jpg",
         };
 
         await fetch("/.netlify/functions/send-booking-notification", {

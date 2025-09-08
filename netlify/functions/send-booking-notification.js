@@ -76,10 +76,10 @@ exports.handler = async (event) => {
     const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
     const uniqueTokens = [...new Set(tokens)];
     const messagePayload = {
-      notification: {
-        title: `🎉 حجز جديد من: ${details.customerName}`,
-        body: `تم تأكيد حجز لـ "${details.tourName}" بمبلغ إجمالي ${details.totalAmount || 'N/A'} جنيه.`,
-      },
+       notification: {
+    title: `🎉 حجز جديد من: ${details.customerName}`,
+    body: `تم تأكيد حجز جديد لـ "${details.tourName}". اضغط للمزيد من التفاصيل.`, // <-- النص الجديد بدون السعر
+  },
       data: {
         bookingId: details.bookingReference || '',
         customerName: details.customerName || '',

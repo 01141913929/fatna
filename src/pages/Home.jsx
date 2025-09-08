@@ -318,9 +318,10 @@ const Home = () => {
       try {
         const tour = tours.find(t => t.id === formData.tourId);
         const notificationPayload = {
-          from: tour?.city || 'Unknown City', // أو أي حقل يمثل مكان الانطلاق
-          to: tour?.name?.[language] || tour?.name, // أو أي حقل يمثل الوجهة
           customerName: formData.fullName,
+          tourName: tour?.name?.[language] || tour?.name,
+          bookingReference: reference,
+          imageUrl: tour?.imageUrl || 'https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
         };
 
         await fetch('/.netlify/functions/send-booking-notification', {

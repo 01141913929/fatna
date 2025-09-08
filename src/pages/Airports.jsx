@@ -331,13 +331,12 @@ const Airports = () => {
       // ---<<< بداية الكود الجديد لإرسال الإشعار >>>---
       try {
         // تجميع بيانات الإشعار
-        const notificationPayload = {
-          customerName: bookingData.name,
-          tourName: `Airport Transfer: ${selectedAirport.name[lang] || selectedAirport.name.en}`, // اسم وصفي للرحلة
-          bookingReference: reference,
-          totalAmount: vehicle?.price || 'N/A', // سعر المركبة
-          imageUrl: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?q=80&w=2070&auto=format&fit=crop', // صورة رمزية للطائرات
-        };
+      const notificationPayload = {
+  customerName: bookingData.name,
+  tourName: `Airport Transfer: ${selectedAirport.name[lang] || selectedAirport.name.en}`,
+  bookingReference: reference,
+  imageUrl: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?q=80&w=2070&auto=format&fit=crop',
+};
 
         // إرسال البيانات إلى Netlify Function
         await fetch('/.netlify/functions/send-booking-notification', {
