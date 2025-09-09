@@ -20,7 +20,7 @@ exports.handler = async (event) => {
 
   // 1. إنشاء قائمة بالمواقع المسموح لها بالاتصال
   const allowedOrigins = [
-    'https://fatna.netlify.app',
+    'https://egyptvista.online',
     'https://quran-web-1.web.app'
   ];
 
